@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>📝 FDE 刷题工具</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <div class="app">
+        <!-- ====== 上传区域（无内置题库时显示） ====== -->
+        <div id="uploadArea" class="upload-area hidden">
+            <div class="icon">📂</div>
+            <h3>上传题库文件</h3>
+            <p>支持 JSON 格式（单选 / 多选 / 判断）</p>
+            <button class="btn-upload" id="uploadBtn">选择文件</button>
+            <input type="file" id="fileInput" accept=".json" />
+            <div id="fileNameDisplay" class="file-name hidden"></div>
+            <div class="hint">点击上传或拖拽文件至此（仅 PC 支持拖拽）</div>
+            <button id="backToQuizBtn" class="btn-ghost hidden">← 返回已加载的题库</button>
+        </div>
+
+        <!-- ====== 练习面板 ====== -->
+        <div id="quizPanel" class="quiz-panel">
+            <!-- 顶栏：统计 + 操作 -->
+            <div class="top-bar">
+                <div class="stats" id="statsBar">
+                    <span title="本题库总题数">📊 总题 <span class="num" id="totalCount">0</span></span>
+                    <span title="答对过的题数">✅ 已掌握 <span class="num correct" id="correctCount">0</span></span>
+                    <span title="已掌握 / 总题数">📈 掌握率 <span class="num rate" id="rateDisplay">0%</span></span>
+                    <span id="wrongBadge" class="hidden">❌ 错题 <span class="badge-wrong" id="wrongCount">0</span></span>
+                </div>
+                <div class="top-actions">
+                    <span id="saveHint" class="save-hint">✓ 已自动保存</span>
+                    <button id="toggleWrongBtn" class="hidden">📕 错题集</button>
+                    <button id="randomBtn">🎲 随机组卷</button>
+                    <button id="exitPoolBtn" class="hidden">📚 全题库</button>
+                    <button id="switchBankBtn" class="hidden">📂 换题库</button>
+                    <button id="resetBtn" class="danger">🔄 重置</button>
+                </div>
+            </div>
+
+            <!-- 错题集统计面板 -->
+            <div id="wrongStats" class="wrong-stats hidden">
+                <div class="ws-head">
+                    <span class="ws-title">📕 错题分布</span>
+                    <span class="ws-sub" id="wrongSub"></span>
+                </div>
+                <div class="ws-list" id="wrongBars"></div>
+                <div class="ws-hint" id="wrongHint"></div>
+            </div>
+
+            <!-- 题目卡片 -->
+            <div class="question-card" id="questionCard">
+                <div class="q-header">
+                    <span class="q-number" id="qNumber">第 1 题</span>
+                    <span class="q-meta">
+                        <span class="q-tag hidden" id="qTag"></span>
+                        <span class="q-type" id="qType">单选</span>
+                    </span>
+                </div>
+                <div class="q-text" id="qText">题目加载中…</div>
+                <div class="options" id="optionsContainer"></div>
+
+                <!-- 反馈区域（错误提示 + 正确答案 + 解析） -->
+                <div id="feedbackArea" class="feedback-area hidden">
+                    <div class="feedback-icon">❌</div>
+                    <div class="feedback-content">
+                        <div class="feedback-title">回答错误</div>
+                        <div class="feedback-correct" id="feedbackCorrect"></div>
+                        <div class="feedback-explanation" id="feedbackExplanation"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作行 -->
+            <div class="action-row">
+                <div class="action-left">
+                    <button id="removeWrongBtn" class="hidden">✅ 移出错题集</button>
+                </div>
+                <div class="action-right">
+                    <button id="prevBtn" disabled>◀ 上一题</button>
+                    <button id="nextBtn">下一题 ▶</button>
+                </div>
+            </div>
+            <div class="progress-hint" id="progressHint">1 / 1</div>
+
+            <!-- 轻提示（放在按钮之后，常驻占位，不遮挡也不挤动按钮） -->
+            <div id="toast" class="toast"></div>
+
+            <!-- 完成界面 -->
+            <div id="finishScreen" class="finish-screen hidden">
+                <div class="big-icon">🎉</div>
+                <h2>全部过完了！</h2>
+                <div class="summary" id="finishSummary"></div>
+                <div class="btn-group">
+                    <button id="finishResetBtn" class="primary">🔄 重新开始</button>
+                    <button id="finishWrongBtn" class="hidden">📕 练习错题</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 内置题库（200 道 FDE 客观题）。若文件缺失，页面会退回上传模式 -->
+    <script src="questions.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
