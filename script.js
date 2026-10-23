@@ -48,6 +48,13 @@ const rmClose = $('rmClose');
 const rmCancel = $('rmCancel');
 const rmSelectAll = $('rmSelectAll');
 const rmSelectNone = $('rmSelectNone');
+const confirmModalEl = $('confirmModal');
+const cfTitle = $('cfTitle');
+const cfMessage = $('cfMessage');
+const cfOk = $('cfOk');
+const cfCancel = $('cfCancel');
+const cfClose = $('cfClose');
+let cfResolve = null;
 let rmSelected = new Set();
 const exitPoolBtn = $('exitPoolBtn');
 const qNumber = $('qNumber');
@@ -77,12 +84,12 @@ const esc = (s) => String(s == null ? '' : s)
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 let toastTimer = null;
-function toast(msg) {
+function toast(msg, ms) {
     if (!toastEl) return;
     toastEl.innerHTML = '<span class="pill">' + esc(msg) + '</span>';
     toastEl.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2200);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), ms || 2200);
 }
 
 function flashSaved() {
@@ -453,7 +460,7 @@ function hideFinish() {
 }
 
 /* ==================== 核心操作 ==================== */
-function handleNext() {
+async function handleNext() {
     const q = getCurrentQuestion();
     if (!q) return;
 
@@ -473,10 +480,12 @@ function handleNext() {
         // 错题集不再自动移除：累计答对满 3 次（3/6/9…）时询问一次，点确定才移除
         if (state.wrongIds.has(q.id) && times % 3 === 0) {
             saveProgress();
-            const ok = confirm(
-                `本题已累计答对 ${times} 次。\n是否从错题集中移除？\n\n` +
-                `· 点「确定」移除\n· 点「取消」保留（之后每答对满 3 次会再询问）`
-            );
+            const ok = await confirmModal({
+                title: '移出错题集？',
+                message: `本题已累计答对 ${times} 次。\n\n移出后不再出现在错题集；\n保留则每答对满 3 次会再询问一次。`,
+                okText: '移出',
+                cancelText: '保留',
+            });
             if (ok) {
                 state.wrongIds.delete(q.id);
                 toast('已移出错题集');
@@ -552,6 +561,38 @@ function setTagFilter(tag) {
     state.index = 0;
     saveProgress();
     renderQuestion();
+}
+
+/* ==================== 通用确认弹框 ==================== */
+let cfPending = false;
+
+function confirmModal(opts) {
+    opts = opts || {};
+    if (cfPending) return Promise.resolve(false);      // 防重复弹出
+
+    return new Promise((resolve) => {
+        cfPending = true;
+        cfTitle.textContent = opts.title || '确认';
+        cfMessage.textContent = opts.message || '';
+        cfOk.textContent = opts.okText || '确定';
+        cfCancel.textContent = opts.cancelText || '取消';
+        cfOk.className = opts.danger ? 'btn-danger' : 'btn-primary';
+
+        confirmModalEl.classList.remove('hidden');
+        document.body.classList.add('modal-open');
+        cfResolve = resolve;
+        setTimeout(() => cfOk.focus(), 40);
+    });
+}
+
+function closeConfirm(result) {
+    if (!cfPending) return;
+    confirmModalEl.classList.add('hidden');
+    document.body.classList.remove('modal-open');
+    cfPending = false;
+    const r = cfResolve;
+    cfResolve = null;
+    if (r) r(result);
 }
 
 /* ==================== 随机组卷（弹框） ==================== */
@@ -645,10 +686,17 @@ function doRandomDraw() {
 }
 
 /** 手动把当前题移出错题集 */
-function removeCurrentFromWrong() {
+async function removeCurrentFromWrong() {
     const q = getCurrentQuestion();
     if (!q || !state.wrongIds.has(q.id)) return;
-    if (!confirm('从错题集中移除本题？\n（移除后不会再出现在错题集）')) return;
+    const ok = await confirmModal({
+        title: '移出错题集',
+        message: '从错题集中移除本题？\n移除后不会再出现在错题集。',
+        okText: '移出',
+        cancelText: '取消',
+        danger: true,
+    });
+    if (!ok) return;
     state.wrongIds.delete(q.id);
     state.wrongDisplayIds.delete(q.id);
     saveProgress();
@@ -656,9 +704,16 @@ function removeCurrentFromWrong() {
     toast('已移出错题集');
 }
 
-function exitPool() {
+async function exitPool() {
     if (!state.pool) return;
-    if (!confirm('回到全题库？当前这轮的答题进度会被重置。')) return;
+    const ok = await confirmModal({
+        title: '回到全题库',
+        message: '退出本次随机组卷？\n当前这轮的答题进度会被重置，题库本身不受影响。',
+        okText: '回到全题库',
+        cancelText: '继续组卷',
+        danger: true,
+    });
+    if (!ok) return;
     state.pool = null;
     resetSession();
     hideFinish();
@@ -668,8 +723,15 @@ function exitPool() {
 }
 
 /* ==================== 重置 ==================== */
-function resetProgress() {
-    if (!confirm('重置将清除所有答题进度（题库保留），确定继续吗？')) return;
+async function resetProgress() {
+    const ok = await confirmModal({
+        title: '重置进度',
+        message: '清除所有答题进度？\n答题记录、错题集、题池都会被清空，题库本身保留。',
+        okText: '重置',
+        cancelText: '取消',
+        danger: true,
+    });
+    if (!ok) return;
     state.userAnswers = {};
     state.submitted = {};
     state.wrongIds = new Set();
@@ -727,7 +789,7 @@ function bankSignature(list) {
 function loadBank(list, name, opts) {
     opts = opts || {};
     const err = validateBank(list);
-    if (err) { alert('题库格式错误：' + err); return false; }
+    if (err) { toast('题库格式错误：' + err, 5000); return false; }
 
     state.questions = normalizeBank(list);
     state.qmap = {};
@@ -777,7 +839,7 @@ function loadFile(file) {
         try {
             data = JSON.parse(e.target.result);
         } catch (err) {
-            alert('文件解析失败：' + err.message);
+            toast('文件解析失败：' + err.message, 5000);
             return;
         }
         if (loadBank(data, file.name)) {
@@ -816,7 +878,7 @@ uploadArea.addEventListener('drop', function (e) {
     if (!files || files.length === 0) return;
     const f = files[0];
     if (f.type === 'application/json' || f.name.endsWith('.json')) loadFile(f);
-    else alert('请上传 JSON 文件');
+    else toast('请上传 JSON 文件', 3600);
 });
 
 /* ==================== 事件绑定 ==================== */
@@ -858,6 +920,12 @@ resetBtn.addEventListener('click', resetProgress);
 finishResetBtn.addEventListener('click', resetProgress);
 switchBankBtn.addEventListener('click', showUpload);
 randomBtn.addEventListener('click', openRandomModal);
+cfOk.addEventListener('click', () => closeConfirm(true));
+cfCancel.addEventListener('click', () => closeConfirm(false));
+cfClose.addEventListener('click', () => closeConfirm(false));
+confirmModalEl.addEventListener('click', (e) => {
+    if (e.target === confirmModalEl) closeConfirm(false);
+});
 rmClose.addEventListener('click', closeRandomModal);
 rmCancel.addEventListener('click', closeRandomModal);
 rmStart.addEventListener('click', doRandomDraw);
@@ -901,10 +969,9 @@ rmCount.addEventListener('keydown', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !randomModal.classList.contains('hidden')) {
-        closeRandomModal();
-        e.preventDefault();
-    }
+    if (e.key !== 'Escape') return;
+    if (!confirmModalEl.classList.contains('hidden')) { closeConfirm(false); e.preventDefault(); return; }
+    if (!randomModal.classList.contains('hidden')) { closeRandomModal(); e.preventDefault(); }
 });
 removeWrongBtn.addEventListener('click', removeCurrentFromWrong);
 exitPoolBtn.addEventListener('click', exitPool);
@@ -922,7 +989,8 @@ finishWrongBtn.addEventListener('click', function () {
 
 /* ==================== 键盘快捷键 ==================== */
 document.addEventListener('keydown', function (e) {
-    if (!randomModal.classList.contains('hidden')) return;   // 弹框打开时不响应翻页
+    if (!randomModal.classList.contains('hidden')) return;   // 组卷弹框打开时不响应翻页
+    if (!confirmModalEl.classList.contains('hidden')) return; // 确认弹框打开时不响应
     const tag = (e.target.tagName || '').toUpperCase();
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'BUTTON') return;
 

@@ -982,3 +982,21 @@ body.modal-open { overflow: hidden; }
     .modal-foot button { min-height: 48px; }
     .rm-hint { font-size: 12px; }
 }
+
+/* ===== 通用确认弹框 ===== */
+.modal-sm { max-width: 430px; }
+.cf-message {
+    font-size: 14.5px;
+    line-height: 1.7;
+    color: #334155;
+    white-space: pre-line;
+    padding: 2px 0 8px;
+}
+.btn-danger { background: #dc2626; border: none; color: #fff; font-weight: 500; }
+.btn-danger:hover { background: #b91c1c; }
+.btn-danger:disabled { background: #f0b4b4; cursor: not-allowed; }
+
+@media (max-width: 820px) {
+    .modal-sm { max-width: none; }
+    .cf-message { font-size: 14px; }
+}
