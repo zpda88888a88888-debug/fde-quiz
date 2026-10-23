@@ -39,6 +39,16 @@ const resetBtn = $('resetBtn');
 const saveHint = $('saveHint');
 const randomBtn = $('randomBtn');
 const removeWrongBtn = $('removeWrongBtn');
+const randomModal = $('randomModal');
+const rmCount = $('rmCount');
+const rmTags = $('rmTags');
+const rmHint = $('rmHint');
+const rmStart = $('rmStart');
+const rmClose = $('rmClose');
+const rmCancel = $('rmCancel');
+const rmSelectAll = $('rmSelectAll');
+const rmSelectNone = $('rmSelectNone');
+let rmSelected = new Set();
 const exitPoolBtn = $('exitPoolBtn');
 const qNumber = $('qNumber');
 const qTag = $('qTag');
@@ -544,32 +554,94 @@ function setTagFilter(tag) {
     renderQuestion();
 }
 
-/* ==================== 随机组卷 ==================== */
-function startRandomQuiz() {
-    const total = state.questions.length;
-    if (total === 0) { toast('请先加载题库'); return; }
+/* ==================== 随机组卷（弹框） ==================== */
+function tagInventory() {
+    const map = new Map();
+    state.questions.forEach((q) => {
+        const t = q.tag || '未标注';
+        map.set(t, (map.get(t) || 0) + 1);
+    });
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0], 'zh-Hans-CN'));
+}
 
-    const raw = prompt(`请输入随机组卷的题目数量（1-${total}）：`, String(Math.min(50, total)));
-    if (raw === null) return;
+function renderRmTags(inv) {
+    rmTags.innerHTML = inv.map(([t, n]) => `
+        <label class="rm-tag${rmSelected.has(t) ? ' on' : ''}" data-tag="${esc(t)}">
+            <input type="checkbox" ${rmSelected.has(t) ? 'checked' : ''} />
+            <span class="rm-tag-name">${esc(t)}</span>
+            <span class="rm-tag-num">${n}</span>
+        </label>`).join('');
+}
 
-    const num = parseInt(raw, 10);
-    if (!Number.isFinite(num) || num < 1 || num > total) {
-        alert(`请输入 1 到 ${total} 之间的数字`);
-        return;
+function poolFromSelection() {
+    return state.questions.filter((q) => rmSelected.has(q.tag || '未标注'));
+}
+
+function updateRmHint() {
+    const avail = poolFromSelection().length;
+    const want = parseInt(rmCount.value, 10);
+
+    if (rmSelected.size === 0) {
+        rmHint.textContent = '请至少选择一个考点标签';
+        rmHint.className = 'rm-hint err';
+        rmStart.disabled = true;
+        return false;
     }
-    if (!confirm(`随机抽取 ${num} 道题开始练习？\n当前这轮的答题进度会被重置（题库本身不受影响）。`)) return;
+    if (!Number.isFinite(want) || want < 1) {
+        rmHint.textContent = '请输入大于 0 的题目数量';
+        rmHint.className = 'rm-hint err';
+        rmStart.disabled = true;
+        return false;
+    }
+    if (want > avail) {
+        rmHint.textContent = `所选考点共 ${avail} 题，少于要抽的 ${want} 题`;
+        rmHint.className = 'rm-hint err';
+        rmStart.disabled = true;
+        return false;
+    }
+    rmHint.textContent = `${rmSelected.size} 个考点 · 可选 ${avail} 题 · 抽取 ${want} 题`;
+    rmHint.className = 'rm-hint ok';
+    rmStart.disabled = false;
+    return true;
+}
 
-    const ids = state.questions.map((q) => q.id);
-    for (let i = ids.length - 1; i > 0; i--) {          // Fisher-Yates
+function openRandomModal() {
+    if (state.questions.length === 0) { toast('请先加载题库'); return; }
+
+    const inv = tagInventory();
+    rmSelected = new Set(inv.map(([t]) => t));       // 默认全选
+    renderRmTags(inv);
+    rmCount.value = String(Math.min(50, state.questions.length));
+    updateRmHint();
+
+    randomModal.classList.remove('hidden');
+    document.body.classList.add('modal-open');
+    setTimeout(() => { rmCount.focus(); rmCount.select(); }, 40);
+}
+
+function closeRandomModal() {
+    randomModal.classList.add('hidden');
+    document.body.classList.remove('modal-open');
+}
+
+function doRandomDraw() {
+    if (!updateRmHint()) return;
+
+    const want = parseInt(rmCount.value, 10);
+    const tagCount = rmSelected.size;
+    const ids = poolFromSelection().map((q) => q.id);
+    for (let i = ids.length - 1; i > 0; i--) {        // Fisher-Yates
         const j = Math.floor(Math.random() * (i + 1));
         [ids[i], ids[j]] = [ids[j], ids[i]];
     }
-    state.pool = ids.slice(0, num);
+
+    state.pool = ids.slice(0, want);
     resetSession();
     hideFinish();
     saveProgress();
+    closeRandomModal();
     renderQuestion();
-    toast(`已随机抽取 ${num} 题，开始吧`);
+    toast(`已抽取 ${want} 题（来自 ${tagCount} 个考点）`);
 }
 
 /** 手动把当前题移出错题集 */
@@ -785,7 +857,55 @@ toggleWrongBtn.addEventListener('click', toggleMode);
 resetBtn.addEventListener('click', resetProgress);
 finishResetBtn.addEventListener('click', resetProgress);
 switchBankBtn.addEventListener('click', showUpload);
-randomBtn.addEventListener('click', startRandomQuiz);
+randomBtn.addEventListener('click', openRandomModal);
+rmClose.addEventListener('click', closeRandomModal);
+rmCancel.addEventListener('click', closeRandomModal);
+rmStart.addEventListener('click', doRandomDraw);
+
+randomModal.addEventListener('click', (e) => {
+    if (e.target === randomModal) closeRandomModal();
+});
+
+rmTags.addEventListener('change', (e) => {
+    const label = e.target.closest('.rm-tag');
+    if (!label) return;
+    const t = label.dataset.tag;
+    if (e.target.checked) rmSelected.add(t); else rmSelected.delete(t);
+    label.classList.toggle('on', e.target.checked);
+    updateRmHint();
+});
+
+rmSelectAll.addEventListener('click', () => {
+    rmSelected = new Set(tagInventory().map(([t]) => t));
+    renderRmTags(tagInventory());
+    updateRmHint();
+});
+
+rmSelectNone.addEventListener('click', () => {
+    rmSelected = new Set();
+    renderRmTags(tagInventory());
+    updateRmHint();
+});
+
+document.querySelectorAll('.rm-presets button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+        const v = btn.dataset.preset;
+        rmCount.value = v === 'all' ? String(poolFromSelection().length) : v;
+        updateRmHint();
+    });
+});
+
+rmCount.addEventListener('input', updateRmHint);
+rmCount.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); doRandomDraw(); }
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !randomModal.classList.contains('hidden')) {
+        closeRandomModal();
+        e.preventDefault();
+    }
+});
 removeWrongBtn.addEventListener('click', removeCurrentFromWrong);
 exitPoolBtn.addEventListener('click', exitPool);
 backToQuizBtn.addEventListener('click', backToQuiz);
@@ -802,6 +922,7 @@ finishWrongBtn.addEventListener('click', function () {
 
 /* ==================== 键盘快捷键 ==================== */
 document.addEventListener('keydown', function (e) {
+    if (!randomModal.classList.contains('hidden')) return;   // 弹框打开时不响应翻页
     const tag = (e.target.tagName || '').toUpperCase();
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'BUTTON') return;
 

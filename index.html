@@ -101,6 +101,49 @@
         </div>
     </div>
 
+    <!-- ====== 随机组卷弹框 ====== -->
+    <div id="randomModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="rmTitle">
+        <div class="modal">
+            <div class="modal-head">
+                <h3 id="rmTitle">🎲 随机组卷</h3>
+                <button type="button" id="rmClose" class="modal-close" aria-label="关闭">✕</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="rm-section">
+                    <label class="rm-label" for="rmCount">题目数量</label>
+                    <div class="rm-count">
+                        <input id="rmCount" type="number" min="1" step="1" inputmode="numeric" value="50" />
+                        <div class="rm-presets">
+                            <button type="button" data-preset="20">20</button>
+                            <button type="button" data-preset="50">50</button>
+                            <button type="button" data-preset="100">100</button>
+                            <button type="button" data-preset="all">全部</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rm-section">
+                    <div class="rm-label-row">
+                        <span class="rm-label">考点标签</span>
+                        <div class="rm-tag-ops">
+                            <button type="button" id="rmSelectAll">全选</button>
+                            <button type="button" id="rmSelectNone">清空</button>
+                        </div>
+                    </div>
+                    <div id="rmTags" class="rm-tags"></div>
+                </div>
+
+                <div id="rmHint" class="rm-hint"></div>
+            </div>
+
+            <div class="modal-foot">
+                <button type="button" id="rmCancel" class="btn-plain">取消</button>
+                <button type="button" id="rmStart" class="btn-primary">开始组卷</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 内置题库（200 道 FDE 客观题）。若文件缺失，页面会退回上传模式 -->
     <script src="questions.js"></script>
     <script src="script.js"></script>
