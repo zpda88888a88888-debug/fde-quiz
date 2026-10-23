@@ -656,6 +656,7 @@ button, .option-item, .ws-row { -webkit-tap-highlight-color: transparent; }
         gap: 10px;
         margin-bottom: 16px;
         padding-bottom: 12px;
+        min-width: 0;
     }
     .stats {
         flex-wrap: wrap;
@@ -666,19 +667,18 @@ button, .option-item, .ws-row { -webkit-tap-highlight-color: transparent; }
     .stats span { flex: 0 0 auto; }
     .stats .num { font-size: 13.5px; }
     .badge-wrong { padding: 1px 9px; font-size: 11.5px; margin-left: 4px; }
+    /* 换行排列：组卷后按钮变多（+全题库）也不会横向溢出 */
     .top-actions {
         display: flex;
-        flex-wrap: nowrap;
+        flex-wrap: wrap;
         gap: 7px;
         align-items: center;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        padding-bottom: 2px;
+        min-width: 0;
+        overflow: visible;
     }
-    .top-actions::-webkit-scrollbar { display: none; }
     .top-actions button {
-        flex: 0 0 auto;
+        flex: 1 0 auto;          /* 只增不缩：每行均分宽度，且文案不被压 */
+        min-width: 0;
         padding: 8px 11px;
         font-size: 12.5px;
         min-height: 40px;
